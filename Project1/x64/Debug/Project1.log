@@ -1,0 +1,11 @@
+﻿  main.cpp
+C:\Program Files\ArrayFire\v3\include\af\exception.h(21,37): warning C4275: non dll-interface class 'std::exception' used as base for dll-interface class 'af::exception'
+  (compiling source file 'main.cpp')
+  C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.38.33130\include\exception(38,19):
+  see declaration of 'std::exception'
+  C:\Program Files\ArrayFire\v3\include\af\exception.h(21,13):
+  see declaration of 'af::exception'
+  
+C:\GitHub\Single_phase_LBM_scratch\Project1\main.cpp(42,28): warning C4244: 'argument': conversion from 'double' to 'dim_t', possible loss of data
+C:\GitHub\Single_phase_LBM_scratch\Project1\main.cpp(43,28): warning C4244: 'argument': conversion from 'double' to 'dim_t', possible loss of data
+  Project1.vcxproj -> C:\GitHub\Single_phase_LBM_scratch\Project1\x64\Debug\Project1.exe
