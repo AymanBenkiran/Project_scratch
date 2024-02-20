@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 
+
 //Reference (Solves problems from Section 5.3.3.6 in book)
 //https://github.com/lbm-principles-practice/code/blob/master/chapter5/poiseuille_BB.m
 
@@ -16,63 +17,89 @@ int main() {
     af::info(); std::cout << std::endl;
     std::cout << "Hello, Visual Studio C++ Project!" << std::endl;
 
-    double scale = 1;                       //Set simulation size
-    double NX = 5 * scale;               //Channel length
-    double NY = 5 * scale;               //Channel width
-    double Nsteps = 1e4 * std::pow(scale, 2);  //Number of simulation time steps
-    double tau = std::sqrt(3 / 16) + 0.5; //relaxation time(BGK model) ((tau = sqrt(3 / 16) + 0.5 gives exact solution)
-    double omega = 1 / tau;
+    double scale = 2.0;                       //Set simulation size
+    double NX = 5.0 * scale;               //Channel length
+    double NY = 5.0 * scale;               //Channel width
+    double Nsteps = 1e4 * std::pow(scale, 2.0);  //Number of simulation time steps
+    double tau = std::sqrt(3.0 / 16.0) + 0.5; //relaxation time(BGK model) ((tau = sqrt(3 / 16) + 0.5 gives exact solution)
+    double omega = 1.0 / tau;
     double u_max = 0.1 / scale;             // maximum velocity
-    double nu = (2 * tau - 1) / 6;       //kinematic shear viscosity
+    double nu = (2.0 * tau - 1.0) / 6.0;       //kinematic shear viscosity
     double Re = NY * u_max / nu;         //Reynolds number; scaling parameter in simulation
 
     //Lattice parameters (Note : zero is last) 
     double NPOP = 9; //number of velocities
     
     // Weights
-    af::array w = { 1.0 / 9, 1.0 / 9, 1.0 / 9, 1.0 / 9, 1.0 / 36, 1.0 / 36, 1.0 / 36, 1.0 / 36, 4.0 / 9 };
+    af::array w = { 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0, 4.0 / 9.0 };
+    af_print(w);
 
     // Velocities, x components
-    af::array cx = { 1, 0, -1,  0, 1, -1, -1,  1, 0 };
+    af::array cx = { 1.0, 0.0, -1.0,  0.0, 1.0, -1.0, -1.0,  1.0, 0.0 };
 
     // Velocities, y components
-    af::array cy = { 0, 1,  0, -1, 1,  1, -1, -1, 0 };
+    af::array cy = { 0.0, 1.0, 0.0, -1.0, 1.0,  1.0, -1.0, -1.0, 0.0 };
 
     // Node locations
-    af::array x = af::iota(NX, af::dtype::f64) - 0.5;
-    af::array y = af::iota(NY, af::dtype::f64) - 0.5;
+    af::array x = af::iota(NX, af::dtype::f64) - 0.5;   //Warning of loss data (to investigate)
+    af::array y = af::iota(NY, af::dtype::f64) - 0.5;   //Warning of loss data (to investigate)
 
-    // Display the results
-    af_print(x);
-    af_print(y);
+    //// Display the results
+    //af_print(x);
+    //af_print(y);
 
     // Pressure conditions
-    double gradP      = 8 * nu * u_max / std::pow(NY,2);
-    double rho_outlet = 1;
-    double rho_inlet  = 3 * (NX - 1) * gradP + rho_outlet;
+    double gradP      = 8.0 * nu * u_max / std::pow(NY,2.0);
+    double rho_outlet = 1.0;
+    double rho_inlet  = 3.0 * (NX - 1.0) * gradP + rho_outlet;
 
-    //// Analytical solution : Poiseuille velocity
-    //double ybottom = 0;
-    //double ytop = NY;
-    //af::array u_analy = -4 * u_max / (std::pow(NY, 2)) * (y - ybottom) * (y - ytop);
+    // Analytical solution : Poiseuille velocity
+    double ybottom = 0.0;
+    double ytop = NY;
+    af::array u_analy = -4.0 * u_max / (std::pow(NY, 2.0)) * (y - ybottom) * (y - ytop);
 
-    //// Initialize populations
-    // // Initialize feq array
-    //af::array feq = af::constant(0.0, NX, NY, NPOP, af::dtype::f64);
+    // Initialize populations
+        // Initialize feq array
+    af::array feq = af::constant(0.0, NX, NY, NPOP, af::dtype::f64); //Warning of loss data (to investigate)
 
-    //    // Set values for feq
-    //for (int k = 0; k < NPOP; ++k) {
-    //    feq(af::span, af::span, k) = w(k); // assuming density equal one and zero velocity initial state
-    //}
+        // Set values for feq
+    for (int k = 0; k < NPOP; ++k) {
+        for (int i = 0; i < NX; ++i) {
+            for (int j = 0; j < NY; ++j) {
+                feq(i, j, k) = w(k); // assuming density equal one and zero velocity initial state
+            }
+        }
+    }
 
-    //    // Assign feq to f and fprop
-    //af::array f = feq;
-    //af::array fprop = feq;
+        // Assign feq to f and fprop
+    af::array f = feq;
+    af::array fprop = feq;
 
-    //    // Convergence parameters
-    //double tol = 1e-12; // tolerance to steady state convergence
-    //double teval = 100; // time step to evaluate convergence
-    //af::array u_old = af::constant(0,NX, NY, af::dtype::f64);
+        // Convergence parameters
+    double tol = 1e-12; // tolerance to steady state convergence
+    double teval = 100.0; // time step to evaluate convergence
+
+    af::array u_old = af::constant(0.0,NX, NY, af::dtype::f64); //Warning of loss data (to investigate)
+
+        // Initialize timer
+    af::timer myTimer;
+    af::sync();
+    myTimer = af::timer::start();
+
+    // Main algorithm
+    
+        //Macroscopic variables
+    double rho;
+
+    for (int t = 1; t < Nsteps; t++) {
+        // Compute macroscopic quantities
+        // Density
+        rho = af::sum<double>(fprop, 3);
+    }
+    af::sync(); //See if it should be here or in the for loop
+    double nbsSecondElapsed = af::timer::stop(myTimer);
+
+    printf("timing_manualWithError_exemple3() took %g seconds\n", nbsSecondElapsed);
 
     return 0;
 }
