@@ -79,7 +79,9 @@ int main() {
     double tol = 1e-12; // tolerance to steady state convergence
     double teval = 100.0; // time step to evaluate convergence
 
-    af::array u_old = af::constant(0.0,NX, NY, af::dtype::f64); //Warning of loss data (to investigate)
+    af::array u_old = af::constant(0.0, NX, NY, af::dtype::f64); //Warning of loss data (to investigate)
+    af::array u;
+    af::array v;
 
         // Initialize timer
     af::timer myTimer;
@@ -90,16 +92,98 @@ int main() {
     
         //Macroscopic variables
     double rho;
+    af::array indices_component1;
+    af::array indices_component2;
+    af::array selectedCols_component1;
+    af::array selectedCols_component2;
 
     for (int t = 1; t < Nsteps; t++) {
         // Compute macroscopic quantities
         // Density
         rho = af::sum<double>(fprop, 3);
+
+        //  Momentum components
+            // u
+        indices_component1 = { 1, 5, 8 };
+        indices_component2 = { 3, 6, 7 };
+        selectedCols_component1 = fprop(af::span, indices_component1);
+        selectedCols_component2 = fprop(af::span, indices_component2);
+        u = af::sum(selectedCols_component1, 2) - af::sum(selectedCols_component2, 2);
+
+            // v
+        indices_component1 = { 2, 5, 6 };
+        indices_component2 = { 4, 7, 8 };
+        selectedCols_component1 = fprop(af::span, indices_component1);
+        selectedCols_component2 = fprop(af::span, indices_component2);
+        v = af::sum(selectedCols_component1, 2) - af::sum(selectedCols_component2, 2);
+        
+        // Check convergence
+        if (std::fmod(t, teval) == 1.0) {
+            double conv = af::abs(af::mean(u)).scalar<double>() / af::abs(af::mean(u_old - 1.0)).scalar<double>();
+
+            if (conv < tol) {
+                break;
+            }
+            else {
+                u_old = u;
+            }
+        }
+
+        for (int k = 0; k < NPOP; k++) {
+
+            // Compute equilibrium distribution (linear equilibrium with incompressible model)
+            feq = af::tile(af::reorder(w, 1, 0), 1, 1, NPOP) * (rho + 3 * (u * af::tile(cx, 1, 1, NPOP) + v * af::tile(cy, 1, 1, NPOP)));
+        }
+        
+        // Collision step
+        f = (1 - omega) * fprop + omega * feq;
+
+        // Inlet / Outlet BC : PBBC(w / i = 1 and i = NX outside layers)
+        for (int k = 0; k < NPOP; ++k) {
+            f(af::seq(1), af::span, af::seq(k, k)) = w(k) * (rho_inlet + 3 * (cx(k) * u(NX - 1, af::span) + cy(k) * v(NX - 1, af::span))) + (f(NX - 1, af::span, af::seq(k, k)) - feq(NX - 1, af::span, af::seq(k, k)));
+            f(af::seq(NX), af::span, af::seq(k, k)) = w(k) * (rho_outlet + 3 * (cx(k) * u(2, af::span) + cy(k) * v(2, af::span))) + (f(2, af::span, af::seq(k, k)) - feq(2, af::span, af::seq(k, k)));
+        }
+
+        for (int k = 0; k < NPOP; ++k) {
+            for (int j = 0; j < NY; ++j) {
+                for (int i = 0; i < NX; ++i) {
+                    // Streaming step (Periodic streaming of whole domain)
+                    int newx = 1 + std::fmod((i - 1 + static_cast<int>(cx(k).scalar<float>()) + NX), NX);
+                    int newy = 1 + std::fmod((j - 1 + static_cast<int>(cy(k).scalar<float>()) + NY), NY);
+                    fprop(newx, newy, k) = f(i, j, k);
+                }
+            }
+        }
+
+        // Boundary condition (bounce-back)
+            // Top wall (rest)
+        fprop(af::span, NY, 3) = f(af::span, NY, 1);
+        fprop(af::span, NY, 6) = f(af::span, NY, 5);
+        fprop(af::span, NY, 7) = f(af::span, NY, 8);
+
+            // Bottom wall (rest)
+        fprop(af::span, 0, 4) = f(af::span, 0, 2);
+        fprop(af::span, 0, 8) = f(af::span, 0, 7);
+        fprop(af::span, 0, 5) = f(af::span, 0, 6);
+
     }
     af::sync(); //See if it should be here or in the for loop
     double nbsSecondElapsed = af::timer::stop(myTimer);
 
     printf("timing_manualWithError_exemple3() took %g seconds\n", nbsSecondElapsed);
+    af_print(feq);
+
+    // Compute error : L2 norm
+// (note i = 1 and i = NX are virtual, not fluid, layers; thus not considered in error)
+    af::array error = af::constant(0.0, NX);
+    for (int i = 1; i < NX - 1; ++i) {
+        error(i) = af::sqrt(af::sum((u(i, af::span) - u_analy)) * af::sum((u(i, af::span) - u_analy))) / af::sqrt(af::sum(u_analy * u_analy));
+    }
+    double L2 = 1.0 / NX * af::sum<double>(error);
+
+    // Accuracy information
+    printf(" ----- accuracy information -----\n");
+    printf("        L2(u): %g\n", L2);
 
     return 0;
 }
