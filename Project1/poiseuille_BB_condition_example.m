@@ -1,4 +1,4 @@
-% Example matlab code for computing a Poiseuille flow with BB
+% Example matlab code for computing a Poiseuille flow with BB condition
 % Solves problems from Section 5.3.3.6 in book
 
 clear all; close all; clc;
