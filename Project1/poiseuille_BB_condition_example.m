@@ -4,7 +4,7 @@
 clear all; close all; clc;
 
 % simulation parameters
-scale=1;                % set simulation size
+scale=8;                % set simulation size
 NX=5*scale;             % channel length
 NY=5*scale;             % channel width
 NSTEPS=1e4*scale^2;     % number of simulation time steps
@@ -53,7 +53,8 @@ u_old=zeros(NX,NY);
 tstart = tic;
 
 % Main algorithm
-for t=1:NSTEPS      
+for t=1:NSTEPS   
+%for t=1:2   
     % Compute macroscopic quantities  
     % density
     rho = sum(fprop,3);
@@ -76,7 +77,7 @@ for t=1:NSTEPS
     
     
     for k=1:NPOP
-        % Compute equilibrium distribution (linear equilibrium with incompressible model)
+        % Compute equilibrium distribution (linear equilibrium with incompressible model) : cs = 1/sqrt(3)
         feq(:,:,k)=w(k)*(rho + 3*(u*cx(k)+v*cy(k)));
     end
     % Collision step
